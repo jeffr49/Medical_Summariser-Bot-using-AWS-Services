@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Medical Assistant</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>AI Medical Assistant</h1>
+        <p class="subtitle">Upload → Summarize → Ask Questions</p>
+        <div class="language-selector">
+            <select id="languageSelect">
+                <option value="en">English</option>
+                <option value="hi">Hindi</option>                
+            </select>
+        </div>
+    </header>
+
+    <section class="card upload-card">
+        <label class="file-label">Select Medical Report</label>
+        <input type="file" id="fileInput" accept=".pdf,.png,.jpg">
+        <button id="uploadBtn" class="btn" disabled>📤 Upload & Summarize</button>
+        <div id="status" class="status"></div>
+
+        <div id="progressWrap" class="progress-wrap hidden">
+            <progress id="uploadProgress" value="0" max="100"></progress>
+            <span id="progressText"></span>
+        </div>
+    </section>
+
+    <div id="resultsWrapper" class="results hidden">
+        <section id="summaryArea" class="card summary-card">
+            <h3>📄 Summary</h3>
+            <div id="summaryJson"></div>
+            <a id="downloadLink" class="btn-link" href="#" download>⬇ Download PDF</a>
+        </section>
+
+        <section id="alertsWrapper" class="card alerts-card hidden">
+            <h3>⚠️ Critical Alerts</h3>
+            <ul id="alertsList" class="alerts-list"></ul>
+        </section>
+
+        <section class="card chat-card">
+            <h3>🤖 Ask Your AI Assistant</h3>
+            <div class="chat-controls">
+                <label class="switch">
+                    <input type="checkbox" id="ttsToggle">
+                    <span class="slider round"></span>
+                    <span class="toggle-label">Text-to-Speech</span>
+                </label>
+            </div>
+            <div id="chatWindow" class="chat-window"></div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" placeholder="Ask something..." />
+                <button id="micBtn" class="btn small">🎤</button>
+                <button id="sendBtn" class="btn small">Send</button>
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

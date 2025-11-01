@@ -1,0 +1,24 @@
+{
+  "name": "medical-summarizer",
+  "version": "1.0.0",
+  "description": "Medical report summarizer with multilingual support and AWS integration",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-polly": "^3.x",
+    "@aws-sdk/client-transcribe": "^3.x",
+    "@aws-sdk/client-transcribe-streaming": "^3.922.0",
+    "@aws-sdk/client-translate": "^3.x",
+    "cors": "^2.x",
+    "dotenv": "^16.x",
+    "express": "^4.x",
+    "ws": "^8.x",
+    "uuid": "^9.x"
+  },
+  "devDependencies": {
+    "nodemon": "^3.x"
+  }
+}
