@@ -451,13 +451,38 @@ function replaceLastBotMessage(newText) {
 }
 
 function renderSummary(summary) {
-    const s = summary.summary;
+    const s = summary.summary || {};
+    const p = s.patient_details || {};
+
+    const personalFields = Object.entries(p)
+        .filter(([_, v]) => v && ((Array.isArray(v) && v.length) || (typeof v === 'string' && v.trim() !== '')))
+        .map(([k, v]) => {
+            const label = k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            if (Array.isArray(v)) {
+                return `<li><strong>${label}:</strong> ${v.join(', ')}</li>`;
+            }
+            return `<li><strong>${label}:</strong> ${v}</li>`;
+        }).join("");
+
+    function listSection(title, items) {
+        if (!items || !items.length) return "";
+        return `
+            <div class="summary-section translate">
+                <h4>${title}</h4>
+                <ul>${items.map(i => `<li>${i}</li>`).join("")}</ul>
+            </div>
+        `;
+    }
+
     summaryJson.innerHTML = `
-        <div class="summary-section translate"><h4>Patient</h4><p>${s.patient || "N/A"}</p></div>
-        <div class="summary-section translate"><h4>Conditions</h4><ul>${(s.conditions || []).map(c => `<li>${c}</li>`).join("")}</ul></div>
-        <div class="summary-section translate"><h4>Medications</h4><ul>${(s.medications || []).map(m => `<li>${m}</li>`).join("")}</ul></div>
-        <div class="summary-section translate"><h4>Tests</h4><ul>${(s.tests || []).map(t => `<li>${t}</li>`).join("")}</ul></div>
-        <div class="summary-section translate"><h4>Treatment Plan</h4><ul>${(s.treatment_plan || []).map(t => `<li>${t}</li>`).join("")}</ul></div>
+        <div class="summary-section translate">
+            <h4>Patient Details</h4>
+            <ul>${personalFields || "<li>No personal details detected</li>"}</ul>
+        </div>
+        ${listSection("Conditions", s.conditions)}
+        ${listSection("Medications", s.medications)}
+        ${listSection("Tests", s.tests)}
+        ${listSection("Treatment Plan", s.treatment_plan)}
     `;
 }
 
@@ -465,14 +490,31 @@ function createPdfFromSummary(summary) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     const s = summary.summary || {};
+    const p = s.patient_details || {};
     let y = 10;
 
     doc.setFontSize(16);
     doc.text("Medical Report Summary", 10, y);
     y += 10;
 
+    const personalEntries = Object.entries(p)
+        .filter(([_, v]) => v && ((Array.isArray(v) && v.length) || (typeof v === 'string' && v.trim() !== '')));
+
+    if (personalEntries.length > 0) {
+        doc.setFontSize(12);
+        doc.text("Patient Details:", 10, y);
+        y += 8;
+        doc.setFontSize(11);
+        personalEntries.forEach(([k, v]) => {
+            const label = k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            if (Array.isArray(v)) v = v.join(', ');
+            doc.text(`${label}: ${v}`, 14, y);
+            y += 6;
+        });
+        y += 6;
+    }
+
     const sections = [
-        { title: "Patient", list: [s.patient || "N/A"] },
         { title: "Conditions", list: s.conditions || [] },
         { title: "Medications", list: s.medications || [] },
         { title: "Tests", list: s.tests || [] },
@@ -481,22 +523,17 @@ function createPdfFromSummary(summary) {
     ];
 
     doc.setFontSize(11);
-
     sections.forEach(section => {
+        if (!section.list.length) return;
         doc.setFont(undefined, "bold");
         doc.text(section.title + ":", 10, y);
         y += 6;
         doc.setFont(undefined, "normal");
-        if (section.list.length === 0) {
-            doc.text("N/A", 14, y);
-            y += 6;
-        } else {
-            section.list.forEach(item => {
-                const splitText = doc.splitTextToSize(`• ${item}`, 180);
-                doc.text(splitText, 14, y);
-                y += splitText.length * 6;
-            });
-        }
+        section.list.forEach(item => {
+            const splitText = doc.splitTextToSize(`• ${item}`, 180);
+            doc.text(splitText, 14, y);
+            y += splitText.length * 6;
+        });
         y += 4;
     });
 
