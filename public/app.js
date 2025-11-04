@@ -62,7 +62,6 @@ async function translateUI() {
         for (const element of elements) {
             const originalText = element.getAttribute('data-original-text') || element.textContent;
             element.setAttribute('data-original-text', originalText);
-            
             const response = await fetch(`${API_BASE_URL}/translate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -71,7 +70,6 @@ async function translateUI() {
                     targetLanguage: currentLanguage
                 })
             });
-            
             const data = await response.json();
             element.textContent = data.translatedText;
         }
@@ -82,7 +80,6 @@ async function translateUI() {
 
 async function speakText(text) {
     if (!ttsToggle.checked) return;
-    
     try {
         const response = await fetch(`${API_BASE_URL}/tts`, {
             method: 'POST',
@@ -92,7 +89,6 @@ async function speakText(text) {
                 language: currentLanguage
             })
         });
-        
         const data = await response.json();
         const audio = new Audio(`data:audio/mp3;base64,${data.audio}`);
         await audio.play();
@@ -101,179 +97,106 @@ async function speakText(text) {
     }
 }
 
-// WebSocket connection for real-time transcription
-function connectWebSocket() {
-    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${proto}://${window.location.host}/stt`;
-    
-    ws = new WebSocket(wsUrl);
-    
-    ws.onopen = () => {
-        console.log('WebSocket connected for transcription');
-        // Inform server which language we want for this session
-        try {
+// --- WebSocket Lifecycle Management ---
+
+async function openWebSocket() {
+    return new Promise((resolve, reject) => {
+        const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const wsUrl = `${proto}://${window.location.host}/stt`;
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            console.log('WebSocket connected');
             ws.send(JSON.stringify({ type: 'lang', language: currentLanguage }));
-        } catch (e) { console.warn('Failed to send lang on WS open', e); }
-        micBtn.disabled = false;
-    };
-    
-    ws.onmessage = (event) => {
-        try {
-            const data = JSON.parse(event.data);
-            
-            if (data.type === 'session') {
-                activeSessionId = data.sessionId;
-                console.log('Session ID:', activeSessionId);
-            } else if (data.type === 'transcript') {
-                // Update chat input with transcribed text
-                chatInput.value = data.text;
-                console.log('Transcribed:', data.text);
+            resolve();
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            reject(error);
+        };
+
+        ws.onclose = () => {
+            console.log('WebSocket closed');
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.type === 'session') {
+                    activeSessionId = data.sessionId;
+                    console.log('Session ID:', activeSessionId);
+                } else if (data.type === 'transcript') {
+                    chatInput.value = data.text;
+                }
+            } catch (err) {
+                console.error('Error parsing WebSocket message:', err);
             }
-        } catch (error) {
-            console.error('Error parsing WebSocket message:', error);
-        }
-    };
-    
-    ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        micBtn.disabled = true;
-    };
-    
-    ws.onclose = () => {
-        console.log('WebSocket disconnected');
-        micBtn.disabled = true;
-        // Attempt reconnect after delay
-        setTimeout(connectWebSocket, 3000);
-    };
+        };
+    });
 }
 
-// Initialize WebSocket connection when page loads
-window.addEventListener('load', connectWebSocket);
+function closeWebSocket() {
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        console.log('Closing WebSocket...');
+        ws.close(1000, 'Session ended');
+        ws = null;
+    }
+}
 
+// --- Recording Toggle ---
 async function toggleRecording() {
     if (!isRecording) {
-        // Start recording
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                audio: {
-                    channelCount: 1,
-                    sampleRate: 16000,
-                    echoCancellation: true,
-                    noiseSuppression: true
-                }
+            await openWebSocket();
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true }
             });
-                // Log capture details for debugging
-                try {
-                    const tracks = stream.getAudioTracks();
-                    console.log('[client][audio] got stream, tracks=', tracks.map(t=>({id:t.id, label:t.label, enabled:t.enabled}))); 
-                    const settings = tracks[0] && tracks[0].getSettings ? tracks[0].getSettings() : null;
-                    console.log('[client][audio] track settings:', settings, 'audioContext.sampleRate(not yet created)');
-                } catch (e) { console.warn('Failed to log track settings', e); }
-            
-            audioContext = new (window.AudioContext || window.webkitAudioContext)({ 
-                sampleRate: 16000 
-            });
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
             mediaStream = stream;
-            
             sourceNode = audioContext.createMediaStreamSource(stream);
-
-            // Create script processor for audio processing
             processorNode = audioContext.createScriptProcessor(4096, 1, 1);
-
             sourceNode.connect(processorNode);
             processorNode.connect(audioContext.destination);
 
-            // per-session counters for debugging
-            let sendChunkCount = 0;
-
             processorNode.onaudioprocess = (e) => {
                 if (!isRecording || !ws || ws.readyState !== WebSocket.OPEN) return;
-
                 const inputData = e.inputBuffer.getChannelData(0);
-                // Downsample to 16k if needed and convert to Int16Array
                 const pcmData = downsampleAndConvertTo16BitPCM(inputData, audioContext.sampleRate || 48000, 16000);
-
-                // Log chunk sizes and sample rates
-                try {
-                    sendChunkCount++;
-                    const floatLen = inputData.length;
-                    let pcmLen = 0;
-                    let bytes = 0;
-                    if (pcmData instanceof Int16Array) {
-                        pcmLen = pcmData.length;
-                        bytes = pcmData.byteLength;
-                    } else if (pcmData && pcmData.byteLength) {
-                        bytes = pcmData.byteLength;
-                        pcmLen = bytes / Int16Array.BYTES_PER_ELEMENT;
-                    }
-                    console.log(`[client][audio] chunk#${sendChunkCount} float=${floatLen} pcm=${pcmLen} bytes=${bytes} audioContext.sampleRate=${audioContext.sampleRate}`);
-                } catch (e) { console.warn('Failed to log audio chunk info', e); }
-
-                // Send binary audio data via WebSocket (send underlying buffer)
-                try {
-                    // Convert Int16Array to ArrayBuffer for WS
-                    ws.send(pcmData.buffer);
-                } catch (e) {
-                    console.error('Failed to send audio chunk over WS, falling back to POST', e);
-                    // fallback: send base64 via POST
-                    try {
-                        const base64 = arrayBufferToBase64(pcmData.buffer);
-                        fetch(`${API_BASE_URL}/stt/audio/${activeSessionId}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ audio: base64 })
-                        }).catch(err => console.error('fallback POST failed', err));
-                    } catch (e2) { console.error('fallback base64 conversion failed', e2); }
-                }
+                ws.send(pcmData.buffer);
             };
-            
+
             isRecording = true;
             micBtn.classList.add('recording');
             micBtn.textContent = '⏹️ Stop Recording';
             chatInput.placeholder = "Speak now...";
-            
-            // Auto-stop after 30 seconds
-            setTimeout(() => {
-                if (isRecording) toggleRecording();
-            }, 30000);
-            
+
         } catch (error) {
             console.error('Error starting recording:', error);
-            status('Microphone access denied');
+            status('🎙️ Microphone access denied or WebSocket error');
+            closeWebSocket();
         }
     } else {
-        // Stop recording
         isRecording = false;
         micBtn.classList.remove('recording');
         micBtn.textContent = '🎤 Start Recording';
         chatInput.placeholder = "Ask something...";
-        
-        // Clean up audio resources
-        if (processorNode) {
-            processorNode.disconnect();
-            processorNode = null;
-        }
-        if (sourceNode) {
-            sourceNode.disconnect();
-            sourceNode = null;
-        }
-        if (audioContext) {
-            audioContext.close().catch(console.error);
-            audioContext = null;
-        }
-        if (mediaStream) {
-            mediaStream.getTracks().forEach(track => track.stop());
-            mediaStream = null;
-        }
-        
-        // Send stop signal to server
+
+        if (processorNode) processorNode.disconnect();
+        if (sourceNode) sourceNode.disconnect();
+        if (audioContext) await audioContext.close().catch(() => {});
+        if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
+
         if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'stop' }));
         }
+
+        closeWebSocket();
     }
 }
 
-// Convert Float32 to 16-bit PCM
+// --- Audio Processing ---
 function floatTo16BitPCM(input) {
     const l = input.length;
     const result = new Int16Array(l);
@@ -284,42 +207,35 @@ function floatTo16BitPCM(input) {
     return result;
 }
 
-// Downsample Float32Array buffer from fromSampleRate to toSampleRate and return Int16Array
 function downsampleAndConvertTo16BitPCM(buffer, fromSampleRate, toSampleRate) {
     if (!buffer || buffer.length === 0) return new Int16Array(0);
     if (toSampleRate === fromSampleRate) return floatTo16BitPCM(buffer);
-
     const sampleRateRatio = fromSampleRate / toSampleRate;
     const newLength = Math.round(buffer.length / sampleRateRatio);
     const result = new Int16Array(newLength);
-    let offsetResult = 0;
-    let offsetBuffer = 0;
-
+    let offsetResult = 0, offsetBuffer = 0;
     while (offsetResult < result.length) {
         const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
         let accum = 0, count = 0;
         for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
-            accum += buffer[i];
-            count++;
+            accum += buffer[i]; count++;
         }
         const v = count ? accum / count : 0;
         let s = Math.max(-1, Math.min(1, v));
         result[offsetResult] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-        offsetResult++;
-        offsetBuffer = nextOffsetBuffer;
+        offsetResult++; offsetBuffer = nextOffsetBuffer;
     }
-
     return result;
 }
 
-// Rest of your existing functions remain the same...
+// --- Remaining app logic unchanged below ---
+
 async function startFlow(file) {
     try {
         status("Connecting to secure upload...");
         const presResp = await fetch(ENDPOINT_UPLOAD, { method: "POST" });
         const data = await presResp.json();
         const b = data.body ? (typeof data.body === "string" ? JSON.parse(data.body) : data.body) : data;
-
         const uploadUrl = b.upload_url;
         const objectKey = b.object_key;
         if (!uploadUrl || !objectKey) throw new Error("Upload URL or object key missing");
@@ -331,7 +247,6 @@ async function startFlow(file) {
         status("⏳ Extracting & analyzing...");
 
         globalJobId = await poll(ENDPOINT_JOBID + "?object_key=" + encodeURIComponent(objectKey), "job_id", 15);
-
         status("📄 Fetching summary...");
         const summaryUrl = await poll(ENDPOINT_SUMMARY + "?job_id=" + encodeURIComponent(globalJobId), "presigned_get_url", 25);
         const summary = await (await fetch(summaryUrl)).json();
@@ -397,10 +312,7 @@ async function sendQuestion() {
             const translationResponse = await fetch(`${API_BASE_URL}/translate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    text: q,
-                    targetLanguage: 'en'
-                })
+                body: JSON.stringify({ text: q, targetLanguage: 'en' })
             });
             const translationData = await translationResponse.json();
             questionToAsk = translationData.translatedText;
@@ -419,20 +331,15 @@ async function sendQuestion() {
             const translationResponse = await fetch(`${API_BASE_URL}/translate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    text: answer,
-                    targetLanguage: currentLanguage
-                })
+                body: JSON.stringify({ text: answer, targetLanguage: currentLanguage })
             });
             const translationData = await translationResponse.json();
             answer = translationData.translatedText;
         }
 
         replaceLastBotMessage(answer);
-        if (ttsToggle.checked) {
-            await speakText(answer);
-        }
-    } catch (e) {
+        if (ttsToggle.checked) await speakText(answer);
+    } catch {
         replaceLastBotMessage("⚠️ Failed to process answer.");
     }
 }
@@ -453,25 +360,17 @@ function replaceLastBotMessage(newText) {
 function renderSummary(summary) {
     const s = summary.summary || {};
     const p = s.patient_details || {};
-
     const personalFields = Object.entries(p)
         .filter(([_, v]) => v && ((Array.isArray(v) && v.length) || (typeof v === 'string' && v.trim() !== '')))
         .map(([k, v]) => {
             const label = k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            if (Array.isArray(v)) {
-                return `<li><strong>${label}:</strong> ${v.join(', ')}</li>`;
-            }
+            if (Array.isArray(v)) return `<li><strong>${label}:</strong> ${v.join(', ')}</li>`;
             return `<li><strong>${label}:</strong> ${v}</li>`;
         }).join("");
 
     function listSection(title, items) {
         if (!items || !items.length) return "";
-        return `
-            <div class="summary-section translate">
-                <h4>${title}</h4>
-                <ul>${items.map(i => `<li>${i}</li>`).join("")}</ul>
-            </div>
-        `;
+        return `<div class="summary-section translate"><h4>${title}</h4><ul>${items.map(i => `<li>${i}</li>`).join("")}</ul></div>`;
     }
 
     summaryJson.innerHTML = `
