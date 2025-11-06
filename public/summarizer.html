@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Summarizer - AI Medical Assistant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #3b82f6;
+            --secondary-color: #10b981;
+            --text-color: #1f2937;
+            --text-light: #6b7280;
+            --card-background: #ffffff;
+            --background: #f8fafc;
+            --border-color: #d1d5db;
+            --error-color: #ef4444;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --gradient-primary: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            --gradient-secondary: linear-gradient(135deg, var(--secondary-color) 0%, #059669 100%);
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background);
+            color: var(--text-color);
+            line-height: 1.6;
+            background-image: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            border-radius: 16px;
+            padding: 25px 30px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .back-btn {
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .header-title h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
+        }
+
+        .header-title p {
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #f8fafc;
+            padding: 10px 16px;
+            border-radius: 10px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--gradient-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1rem;
+        }
+
+        .user-details h3 {
+            font-size: 0.95rem;
+            margin-bottom: 2px;
+        }
+
+        .user-details p {
+            font-size: 0.8rem;
+            color: var(--text-light);
+        }
+
+        .logout-btn {
+            background: #fef2f2;
+            color: var(--error-color);
+            border: 1px solid #fecaca;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: #fee2e2;
+        }
+
+        .language-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        .language-selector select {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: white;
+            font-family: 'Inter', sans-serif;
+            width: 200px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+        }
+
+        .upload-card {
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: var(--gradient-primary);
+        }
+
+        .file-label {
+            display: block;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text-color);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 25px;
+        }
+
+        .file-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 40px 20px;
+            transition: all 0.3s ease;
+            background: #fafafa;
+        }
+
+        .file-input-display:hover {
+            border-color: var(--primary-color);
+            background: #f0f9ff;
+        }
+
+        .file-input-display i {
+            font-size: 3rem;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+        }
+
+        .file-input-text {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .file-input-subtext {
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        .upload-btn {
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 auto;
+            box-shadow: var(--shadow-md);
+        }
+
+        .upload-btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .upload-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .status.success {
+            background: #f0fdf4;
+            color: var(--success-color);
+            border: 1px solid #bbf7d0;
+            display: flex;
+        }
+
+        .status.error {
+            background: #fef2f2;
+            color: var(--error-color);
+            border: 1px solid #fecaca;
+            display: flex;
+        }
+
+        .progress-wrap {
+            margin-top: 25px;
+            width: 100%;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .progress-wrap.hidden {
+            display: none;
+        }
+
+        progress {
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-top: 10px;
+        }
+
+        .results {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        .results.hidden {
+            display: none;
+        }
+
+        .summary-card {
+            grid-column: 1 / -1;
+        }
+
+        .summary-card.hidden {
+            display: none;
+        }
+
+        .summary-card h3, .alerts-card h3 {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-color);
+        }
+
+        .summary-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .summary-section:last-child {
+            border-bottom: none;
+        }
+
+        .summary-section h4 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-color);
+        }
+
+        .summary-section ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .summary-section li {
+            padding: 8px 0;
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
+        .download-btn {
+            background: var(--gradient-secondary);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            box-shadow: var(--shadow-md);
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .alerts-card {
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .alerts-card.hidden {
+            display: none;
+        }
+
+        .alerts-list {
+            list-style: none;
+        }
+
+        .alerts-list li {
+            padding: 15px;
+            background: #fffbeb;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--warning-color);
+            color: var(--text-color);
+        }
+
+        .alerts-list li:last-child {
+            margin-bottom: 0;
+        }
+
+        .chat-redirect-card {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .chat-redirect-btn {
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 16px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .chat-redirect-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .chat-redirect-btn i {
+            font-size: 1.2rem;
+        }
+
+        .action-btn {
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .action-btn.small {
+            padding: 6px 12px;
+            width: auto;
+            height: auto;
+        }
+
+        #micBtn.recording {
+            background-color: #dc3545;
+            animation: pulse 1.5s infinite;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @media (max-width: 900px) {
+            .results {
+                grid-template-columns: 1fr;
+            }
+            
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .header-right {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+            
+            .chat-input-area {
+                flex-wrap: wrap;
+            }
+            
+            .action-btn {
+                width: 40px;
+                height: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <button class="back-btn" onclick="window.location.href='index.html'">
+                    <i class="fas fa-arrow-left"></i>
+                    Back to Dashboard
+                </button>
+                <div class="header-title">
+                    <h1>Medical Summarizer</h1>
+                    <p>Upload → Summarize → Ask Questions</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        <i class="fas fa-user-md"></i>
+                    </div>
+                    <div class="user-details">
+                        <h3 id="userInfo">Loading...</h3>
+                        <p id="lastLogin">Loading...</p>
+                    </div>
+                </div>
+                <button id="logoutBtn" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </button>
+            </div>
+            <div class="language-selector">
+                <label for="languageSelect">Language:</label>
+                <select id="languageSelect">
+                    <option value="en">English</option>
+                    <option value="hi">Hindi</option>
+                </select>
+            </div>
+        </header>
+
+        <section class="card upload-info-card" style="text-align: center; padding: 30px;">
+            <i class="fas fa-file-medical" style="font-size: 3rem; color: var(--primary-color); margin-bottom: 15px;"></i>
+            <h3 style="margin-bottom: 10px; color: var(--text-color);">Upload Document from Dashboard</h3>
+            <p style="color: var(--text-light); margin-bottom: 20px;">Please upload a medical document from the dashboard to get started.</p>
+            <button class="back-btn" onclick="window.location.href='index.html'" style="background: var(--gradient-primary); color: white; border: none; padding: 12px 24px; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px;">
+                <i class="fas fa-arrow-left"></i>
+                Go to Dashboard
+            </button>
+            <div id="status" class="status" style="margin-top: 20px;"></div>
+        </section>
+
+        <div id="resultsWrapper" class="results hidden">
+            <section id="summaryArea" class="card summary-card">
+                <h3><i class="fas fa-file-medical-alt"></i> Medical Summary</h3>
+                <div id="summaryJson"></div>
+                <a id="downloadLink" class="download-btn" href="#" download>
+                    <i class="fas fa-download"></i>
+                    Download PDF Report
+                </a>
+            </section>
+
+            <section id="alertsWrapper" class="card alerts-card hidden">
+                <h3><i class="fas fa-exclamation-triangle"></i> Critical Alerts</h3>
+                <ul id="alertsList" class="alerts-list"></ul>
+            </section>
+
+            <section class="chat-redirect-card">
+                <button onclick="window.location.href='chatbot.html'" class="chat-redirect-btn">
+                    <i class="fas fa-comments"></i>
+                    <span>Ask questions about your report</span>
+                </button>
+            </section>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script src="app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!isAuthenticated()) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            try {
+                const userResult = await getCurrentUser();
+                if (userResult.success && userResult.user) {
+                    const email = userResult.user.attributes.email || userResult.user.username;
+                    const name = userResult.user.attributes.name || email.split('@')[0];
+                    
+                    document.getElementById('userInfo').textContent = name;
+                    
+                    const now = new Date();
+                    const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                    const dateString = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                    document.getElementById('lastLogin').textContent = `${dateString}, ${timeString}`;
+                }
+            } catch (error) {
+                console.error('Error loading user info:', error);
+                document.getElementById('userInfo').textContent = 'User';
+            }
+
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                logout();
+            });
+
+            const savedJobId = sessionStorage.getItem('globalJobId');
+            if (savedJobId) {
+                globalJobId = savedJobId;
+                
+                async function fetchSummary() {
+                    try {
+                        status("📄 Fetching summary...");
+                        const ENDPOINT_SUMMARY = "https://mai2yr3hmd.execute-api.ap-southeast-2.amazonaws.com/dev/get-summary";
+                        const summaryUrl = await poll(ENDPOINT_SUMMARY + "?job_id=" + encodeURIComponent(savedJobId), "presigned_get_url", 50);
+                        const summary = await (await fetch(summaryUrl)).json();
+
+                        if (summaryArea) summaryArea.classList.remove("hidden");
+                        renderSummary(summary);
+                        createPdfFromSummary(summary);
+
+                        if (alertsWrapper) {
+                            alertsWrapper.classList.remove("hidden");
+                            if (alertsList) {
+                                if (summary.alerts && summary.alerts.length > 0) {
+                                    alertsList.innerHTML = summary.alerts.map(a => `<li>⚠️ ${a}</li>`).join("");
+                                } else {
+                                    alertsList.innerHTML = "<li>No critical alerts</li>";
+                                }
+                            }
+                        }
+
+                        if (resultsWrapper) resultsWrapper.classList.remove("hidden");
+                        status("✅ Summary Ready! Ask questions about your report →");
+                    } catch (e) {
+                        status("Error fetching summary: " + e.message);
+                    }
+                }
+                
+                fetchSummary();
+            } else {
+                const statusDiv = document.getElementById('status');
+                if (statusDiv) {
+                    statusDiv.textContent = "Please upload a document from the dashboard to get started.";
+                    statusDiv.style.display = 'flex';
+                    statusDiv.style.background = '#fef3c7';
+                    statusDiv.style.color = 'var(--warning-color)';
+                    statusDiv.style.border = '1px solid #fde68a';
+                }
+            }
+
+            window.status = function(msg) {
+                const statusDiv = document.getElementById('status');
+                if (!statusDiv) return;
+                statusDiv.textContent = msg;
+                statusDiv.className = 'status';
+                statusDiv.style.display = 'flex';
+                
+                if (msg.includes('✅') || msg.includes('Success')) {
+                    statusDiv.style.background = '#f0fdf4';
+                    statusDiv.style.color = 'var(--success-color)';
+                    statusDiv.style.border = '1px solid #bbf7d0';
+                } else if (msg.includes('Error') || msg.includes('⚠️') || msg.includes('Failed')) {
+                    statusDiv.style.background = '#fef2f2';
+                    statusDiv.style.color = 'var(--error-color)';
+                    statusDiv.style.border = '1px solid #fecaca';
+                } else {
+                    statusDiv.style.background = '#f0f9ff';
+                    statusDiv.style.color = 'var(--primary-color)';
+                    statusDiv.style.border = '1px solid #bae6fd';
+                }
+            };
+        });
+    </script>
+</body>
+</html>

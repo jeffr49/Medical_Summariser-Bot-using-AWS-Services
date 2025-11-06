@@ -5,7 +5,6 @@ const {
 } = require('@aws-sdk/client-transcribe-streaming');
 require('dotenv').config();
 
-// AWS Configuration
 const config = {
     aws: {
         region: process.env.AWS_REGION || 'ap-southeast-2',
@@ -25,10 +24,9 @@ class TranscribeService {
         this.isClientClosed = isClosed;
         this.client = new TranscribeStreamingClient(config.aws);
         this.audioStream = new Readable({ 
-            read() { } // No-op, we push data from outside
+            read() { }
         });
         this.isActive = false;
-        // Stats for debugging
         this.chunksReceived = 0;
         this.bytesQueued = 0;
         this.lastChunkAt = null;
@@ -67,15 +65,13 @@ class TranscribeService {
             for await (const event of response.TranscriptResultStream) {
                 if (this.isClientClosed() || !this.isActive) break;
 
-                // Log raw event for debugging (truncated)
                 try {
                     const raw = JSON.stringify(event, (k, v) => {
-                        // avoid huge binary dumps
                         if (k === 'AudioChunk') return '[AUDIO_CHUNK]';
                         return v;
                     });
                     console.log('[transcribe:event]', raw);
-                } catch (e) { /* ignore stringify issues */ }
+                } catch (e) {}
 
                 if (event.TranscriptEvent && event.TranscriptEvent.Transcript) {
                     const results = event.TranscriptEvent.Transcript.Results || [];
@@ -97,7 +93,6 @@ class TranscribeService {
                 }
             }
         } catch (err) {
-            // Handle timeout by restarting
             const isTimeout = err.name === 'BadRequestException' && 
                             err.message.includes('15 seconds');
             
@@ -129,17 +124,15 @@ class TranscribeService {
                 const { done, value } = await reader.read();
                 
                 if (done || !this.isActive) break;
-                // Convert to Buffer if needed and yield audio chunk
                 const audioChunk = Buffer.isBuffer(value) ? value : Buffer.from(value);
 
-                // Update stats
                 try {
                     this.chunksReceived = (this.chunksReceived || 0) + 1;
                     const size = audioChunk.length || (audioChunk.byteLength || 0);
                     this.bytesQueued = (this.bytesQueued || 0) + size;
                     this.lastChunkAt = Date.now();
                     console.log(`[transcribe][audio] yielding chunk #${this.chunksReceived} size=${size} totalQueued=${this.bytesQueued}`);
-                } catch (e) { /* ignore logging errors */ }
+                } catch (e) {}
 
                 yield { 
                     AudioEvent: { 
@@ -152,13 +145,10 @@ class TranscribeService {
         } finally {
             try {
                 reader.releaseLock();
-            } catch (e) {
-                // Ignore release errors
-            }
+            } catch (e) {}
         }
     }
 
-    // Helper used by server to push raw audio buffers and log stats
     pushAudioChunk(buf) {
         if (!buf) return;
         try {
@@ -167,9 +157,8 @@ class TranscribeService {
             this.bytesQueued = (this.bytesQueued || 0) + size;
             this.lastChunkAt = Date.now();
             console.log(`[transcribe][push] chunk#${this.chunksReceived} size=${size} totalQueued=${this.bytesQueued}`);
-        } catch (e) { /* ignore */ }
+        } catch (e) {}
 
-        // push into readable stream
         try { this.audioStream.push(buf); } catch (e) { console.error('Failed to push audio chunk into stream:', e); }
     }
 }

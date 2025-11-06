@@ -14,20 +14,38 @@ const languageConfig = {
     'hi': { voice: 'Aditi', code: 'hi-IN' }  
 };
 
-async function textToSpeech(text, language = 'en') {
+const englishVoices = {
+    'Joanna': 'en-US',
+    'Matthew': 'en-US',
+    'Amy': 'en-GB',
+    'Brian': 'en-GB',
+    'Emma': 'en-GB'
+};
+
+async function textToSpeech(text, language = 'en', voiceId = null) {
     try {
-        const config = languageConfig[language] || languageConfig['en'];
+        let config;
+        let selectedVoice = voiceId;
+        
+        if (language === 'en' && voiceId && englishVoices[voiceId]) {
+            selectedVoice = voiceId;
+            const languageCode = englishVoices[voiceId];
+            config = { voice: selectedVoice, code: languageCode };
+        } else {
+            config = languageConfig[language] || languageConfig['en'];
+            selectedVoice = config.voice;
+        }
+        
         const params = {
             Text: text,
             OutputFormat: 'mp3',
-            VoiceId: config.voice,
+            VoiceId: selectedVoice,
             LanguageCode: config.code
         };
 
         const command = new SynthesizeSpeechCommand(params);
         const response = await pollyClient.send(command);
         
-        // Convert the audio stream to base64
         return new Promise((resolve, reject) => {
             const chunks = [];
             response.AudioStream.on('data', (chunk) => chunks.push(chunk));

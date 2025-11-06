@@ -1,8 +1,10 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { textToSpeech } = require('./services/pollyService');
 const { translateText } = require('./services/translateService');
 const TranscribeService = require('./services/transcribeService');
+const { signUp, confirmSignUp, signIn, respondToNewPasswordChallenge, getUser, signOut, verifyToken } = require('./services/cognitoService');
 
 const http = require('http');
 const WebSocket = require('ws');
@@ -11,24 +13,184 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+
+app.get('/', (req, res) => {
+    res.redirect('/login.html');
+});
+
 app.use(express.static('public'));
 
-// Store active WebSocket sessions
+const authenticateToken = async (req, res, next) => {
+    try {
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+
+        if (!token) {
+            return res.status(401).json({ error: 'Access token required' });
+        }
+
+        const verification = await verifyToken(token);
+        if (!verification.valid) {
+            return res.status(403).json({ error: 'Invalid or expired token' });
+        }
+
+        req.user = verification.user;
+        next();
+    } catch (error) {
+        return res.status(403).json({ error: 'Authentication failed' });
+    }
+};
+
 const activeSessions = new Map();
 
-// Text to Speech endpoint
-app.post('/api/tts', async (req, res) => {
+// Authentication Routes
+
+app.post('/api/auth/signup', async (req, res) => {
     try {
-        const { text, language } = req.body;
-        const audioContent = await textToSpeech(text, language);
+        const { email, password, name } = req.body;
+        
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password are required' });
+        }
+
+        const attributes = {};
+        if (name) {
+            attributes['name'] = name;
+        }
+
+        const result = await signUp(email, password, attributes);
+        
+        if (result.success) {
+            res.json({
+                message: 'User registered successfully. Please check your email for verification code.',
+                userSub: result.userSub
+            });
+        } else {
+            res.status(400).json({ error: result.error });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/auth/confirm', async (req, res) => {
+    try {
+        const { email, code } = req.body;
+        
+        if (!email || !code) {
+            return res.status(400).json({ error: 'Email and verification code are required' });
+        }
+
+        const result = await confirmSignUp(email, code);
+        
+        if (result.success) {
+            res.json({ message: 'Email verified successfully' });
+        } else {
+            res.status(400).json({ error: result.error });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password are required' });
+        }
+
+        const result = await signIn(email, password);
+        
+        if (result.success) {
+            res.json({
+                accessToken: result.accessToken,
+                idToken: result.idToken,
+                refreshToken: result.refreshToken,
+                expiresIn: result.expiresIn
+            });
+        } else if (result.requiresNewPassword) {
+            res.status(200).json({
+                requiresNewPassword: true,
+                session: result.session,
+                challengeParameters: result.challengeParameters,
+                message: 'NEW_PASSWORD_REQUIRED'
+            });
+        } else {
+            res.status(401).json({ error: result.error });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/auth/change-password', async (req, res) => {
+    try {
+        const { email, session, newPassword } = req.body;
+        
+        if (!email || !session || !newPassword) {
+            return res.status(400).json({ error: 'Email, session, and new password are required' });
+        }
+
+        const result = await respondToNewPasswordChallenge(session, email, newPassword);
+        
+        if (result.success) {
+            res.json({
+                accessToken: result.accessToken,
+                idToken: result.idToken,
+                refreshToken: result.refreshToken,
+                expiresIn: result.expiresIn
+            });
+        } else {
+            res.status(400).json({ error: result.error });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+    try {
+        res.json({
+            username: req.user.username,
+            attributes: req.user.attributes
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/auth/logout', authenticateToken, async (req, res) => {
+    try {
+        const authHeader = req.headers['authorization'];
+        const token = authHeader && authHeader.split(' ')[1];
+        
+        const result = await signOut(token);
+        
+        if (result.success) {
+            res.json({ message: 'Logged out successfully' });
+        } else {
+            res.status(400).json({ error: result.error });
+        }
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Protected API Routes
+
+app.post('/api/tts', authenticateToken, async (req, res) => {
+    try {
+        const { text, language, voice } = req.body;
+        const audioContent = await textToSpeech(text, language, voice);
         res.json({ audio: audioContent });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-// Translation endpoint
-app.post('/api/translate', async (req, res) => {
+app.post('/api/translate', authenticateToken, async (req, res) => {
     try {
         const { text, targetLanguage } = req.body;
         const translatedText = await translateText(text, targetLanguage);
@@ -38,7 +200,6 @@ app.post('/api/translate', async (req, res) => {
     }
 });
 
-// Create HTTP server and attach WebSocket server
 const server = http.createServer(app);
 
 const wss = new WebSocket.Server({ 
@@ -54,15 +215,12 @@ wss.on('connection', (ws, req) => {
     let clientClosed = false;
     let transcribeService = null;
 
-    // Initialize transcription service
     transcribeService = new TranscribeService(
-        // onTranscribe callback
         (transcript) => {
             if (clientClosed || !transcript) return;
             
             console.log(`[${sessionId}] Transcript: ${transcript}`);
             
-            // Send transcript to client
             try {
                 ws.send(JSON.stringify({ 
                     type: 'transcript', 
@@ -73,37 +231,31 @@ wss.on('connection', (ws, req) => {
                 console.error('Error sending transcript:', err);
             }
         },
-        // isClosed check
         () => clientClosed
     );
 
-    // Store session
     activeSessions.set(sessionId, { ws, transcribeService });
 
-    // Send session ID to client
     ws.send(JSON.stringify({ 
         type: 'session', 
         sessionId: sessionId 
     }));
 
-    // Handle incoming messages
     ws.on('message', async (message, isBinary) => {
         if (clientClosed) return;
 
         try {
             if (isBinary) {
-                // Binary audio data - push to transcribe service
                 try {
                     const size = message.length || (message.byteLength || 0);
                     console.log(`WS ${sessionId} <<< binary ${size} bytes at ${new Date().toISOString()}`);
 
-                    // If transcription hasn't started yet, start it now using pending language (if provided)
                     try {
                         if (transcribeService && !transcribeService.isActive && transcribeService.pendingLanguage) {
                             console.log(`Starting transcribeService on first audio chunk for session ${sessionId} with language=${transcribeService.pendingLanguage}`);
                             transcribeService.start(transcribeService.pendingLanguage).catch(err => console.error('Transcribe start failed:', err));
                         }
-                    } catch (e) { /* ignore start errors */ }
+                    } catch (e) {}
 
                     if (transcribeService && typeof transcribeService.pushAudioChunk === 'function') {
                         transcribeService.pushAudioChunk(message);
@@ -116,8 +268,6 @@ wss.on('connection', (ws, req) => {
                     console.error('Error pushing binary audio to transcribeService:', e);
                 }
             } else {
-                // Text message - could be control messages
-                // Defensive parsing: sometimes message can be undefined/empty
                 let data = null;
                 try {
                     const text = (typeof message === 'string') ? message : (message && message.toString ? message.toString() : null);
@@ -132,16 +282,12 @@ wss.on('connection', (ws, req) => {
                 }
 
                 if (data.type === 'lang') {
-                    // Handle language change - start transcription with new language
                     console.log(`Language change requested: ${data.language}`);
-                    // Store pending language and defer starting until we receive the first audio chunk
                     if (transcribeService) {
                         transcribeService.pendingLanguage = data.language || 'en';
-                        // send ack
                         try { ws.send(JSON.stringify({ type: 'lang_ack', language: transcribeService.pendingLanguage })); } catch (e) {}
                     }
                 } else if (data.type === 'stop') {
-                    // Stop transcription
                     if (transcribeService) {
                         transcribeService.getInputStream().push(null);
                     }
@@ -152,7 +298,6 @@ wss.on('connection', (ws, req) => {
         }
     });
 
-    // Handle client disconnect
     ws.on('close', () => {
         console.log(`WebSocket disconnected: ${sessionId}`);
         clientClosed = true;
@@ -169,8 +314,6 @@ wss.on('connection', (ws, req) => {
         clientClosed = true;
         activeSessions.delete(sessionId);
     });
-
-    // Note: transcription will be started when the client sends a { type: 'lang', language } message
 });
 
 const PORT = process.env.PORT || 3000;

@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - AI Medical Assistant</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #3b82f6;
+            --secondary-color: #10b981;
+            --text-color: #1f2937;
+            --text-light: #6b7280;
+            --card-background: #ffffff;
+            --background: #f8fafc;
+            --border-color: #d1d5db;
+            --error-color: #ef4444;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--background);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background-image: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border-radius: 16px;
+            overflow: hidden;
+            background: white;
+            min-height: 700px;
+        }
+
+        .auth-hero {
+            flex: 1;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .auth-hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0,0 L100,0 L100,100 Z" fill="rgba(255,255,255,0.05)"/></svg>');
+            background-size: cover;
+        }
+
+        .auth-hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .auth-hero h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .auth-hero p {
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+            line-height: 1.6;
+            opacity: 0.9;
+        }
+
+        .features-list {
+            list-style: none;
+            margin-top: 30px;
+        }
+
+        .features-list li {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .features-list i {
+            margin-right: 12px;
+            background: rgba(255, 255, 255, 0.2);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .auth-form-section {
+            flex: 1;
+            padding: 50px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .auth-card {
+            max-width: 400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            background: var(--primary-color);
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .auth-header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-color);
+            margin-bottom: 8px;
+            margin: 0;
+        }
+
+        .auth-header p {
+            color: var(--text-light);
+            font-size: 1rem;
+            margin-top: 8px;
+            margin-bottom: 0;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-color);
+            text-align: left;
+        }
+
+        .input-with-icon {
+            position: relative;
+        }
+
+        .input-with-icon i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light);
+        }
+
+        .input-with-icon input {
+            padding-left: 46px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+        }
+
+        .form-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .remember-me input {
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .remember-me label {
+            margin: 0;
+            cursor: pointer;
+            font-weight: 400;
+        }
+
+        .forgot-password {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .forgot-password:hover {
+            text-decoration: underline;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-primary i {
+            margin-right: 8px;
+        }
+
+        .message {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            display: none;
+            align-items: center;
+            text-align: left;
+        }
+
+        .message i {
+            margin-right: 12px;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .message span {
+            flex: 1;
+            text-align: left;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            color: var(--error-color);
+            border: 1px solid #fecaca;
+        }
+
+        .success-message {
+            background: #f0fdf4;
+            color: var(--success-color);
+            border: 1px solid #bbf7d0;
+        }
+
+        .warning-message {
+            background: #fffbeb;
+            color: var(--warning-color);
+            border: 1px solid #fed7aa;
+        }
+
+        .message.show {
+            display: flex;
+        }
+
+        .password-change-section {
+            display: none;
+        }
+
+        .password-change-section.show {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .password-requirements {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            margin-top: 8px;
+            padding-left: 8px;
+        }
+
+        .password-strength {
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .password-strength-bar {
+            height: 100%;
+            width: 0;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .password-strength-weak {
+            background: var(--error-color);
+            width: 25%;
+        }
+
+        .password-strength-medium {
+            background: var(--warning-color);
+            width: 50%;
+        }
+
+        .password-strength-strong {
+            background: var(--success-color);
+            width: 100%;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 900px) {
+            .auth-container {
+                flex-direction: column;
+                max-width: 500px;
+            }
+            
+            .auth-hero {
+                padding: 30px;
+            }
+            
+            .auth-form-section {
+                padding: 40px 30px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .auth-hero {
+                padding: 20px;
+            }
+            
+            .auth-form-section {
+                padding: 30px 20px;
+            }
+            
+            .social-login {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-hero">
+            <div class="auth-hero-content">
+                <h1>AI Medical Assistant</h1>
+                <p>Your intelligent healthcare companion for accurate medical insights, personalized health tracking, and professional medical guidance.</p>
+                
+                <ul class="features-list">
+                    <li><i class="fas fa-check"></i> AI-powered symptom analysis</li>
+                    <li><i class="fas fa-check"></i> Personalized health insights</li>
+                    <li><i class="fas fa-check"></i> 24/7 medical assistance</li>
+                </ul>
+            </div>
+        </div>
+        <div class="auth-form-section">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <div class="logo">
+                        <div class="logo-icon">
+                            <i class="fas fa-stethoscope"></i>
+                        </div>
+                        <h1>Login</h1>
+                    </div>
+                    <p>Welcome back to your medical assistant</p>
+                </div>
+                
+                <div id="errorMessage" class="message error-message">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span></span>
+                </div>
+                <div id="successMessage" class="message success-message">
+                    <i class="fas fa-check-circle"></i>
+                    <span></span>
+                </div>
+                <div id="warningMessage" class="message warning-message">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span></span>
+                </div>
+                
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <div class="input-with-icon">
+                            <input type="email" id="email" name="email" required placeholder="      Enter your email address">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <div class="input-with-icon">
+                            <input type="password" id="password" name="password" required placeholder="     Enter your password">
+                            <button type="button" class="password-toggle" id="passwordToggle">
+                            </button>
+                        </div>
+                </div>
+                    
+                    
+                    <button type="submit" class="btn-primary" id="loginBtn">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>Login</span>
+                    </button>
+                </form>
+                
+                <div id="passwordChangeSection" class="password-change-section">
+                    <div class="auth-header">
+                        <h3 style="text-align: center; margin-bottom: 12px;">Change Password Required</h3>
+                        <p style="text-align: center;">You need to set a new password before you can continue</p>
+                    </div>
+                    
+                    <form id="passwordChangeForm">
+                        <div class="form-group">
+                            <label for="newPassword">New Password</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="newPassword" name="newPassword" required placeholder="Enter new password">
+                                <button type="button" class="password-toggle" id="newPasswordToggle">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="password-strength">
+                                <div class="password-strength-bar" id="passwordStrengthBar"></div>
+                            </div>
+                            <div class="password-requirements">
+                                Password must be at least 8 characters with uppercase, lowercase, and numbers
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="confirmNewPassword">Confirm New Password</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="confirmNewPassword" name="confirmNewPassword" required placeholder="Confirm new password">
+                                <button type="button" class="password-toggle" id="confirmPasswordToggle">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="auth.js"></script>
+    <script>
+        // Password toggle functionality
+        document.getElementById('passwordToggle').addEventListener('click', function() {
+            const passwordInput = document.getElementById('password');
+            const icon = this.querySelector('i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+
+        // New password toggle
+        document.getElementById('newPasswordToggle').addEventListener('click', function() {
+            const passwordInput = document.getElementById('newPassword');
+            const icon = this.querySelector('i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+
+        // Confirm password toggle
+        document.getElementById('confirmPasswordToggle').addEventListener('click', function() {
+            const passwordInput = document.getElementById('confirmNewPassword');
+            const icon = this.querySelector('i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+
+        // Password strength indicator
+        document.getElementById('newPassword').addEventListener('input', function() {
+            const password = this.value;
+            const strengthBar = document.getElementById('passwordStrengthBar');
+            
+            // Reset classes
+            strengthBar.className = 'password-strength-bar';
+            
+            if (password.length === 0) {
+                strengthBar.style.width = '0';
+                return;
+            }
+            
+            // Simple password strength calculation
+            let strength = 0;
+            
+            // Length check
+            if (password.length >= 8) strength += 1;
+            
+            // Contains lowercase
+            if (/[a-z]/.test(password)) strength += 1;
+            
+            // Contains uppercase
+            if (/[A-Z]/.test(password)) strength += 1;
+            
+            // Contains numbers
+            if (/[0-9]/.test(password)) strength += 1;
+            
+            // Contains special characters
+            if (/[^A-Za-z0-9]/.test(password)) strength += 1;
+            
+            // Update strength bar
+            if (strength <= 2) {
+                strengthBar.classList.add('password-strength-weak');
+            } else if (strength <= 4) {
+                strengthBar.classList.add('password-strength-medium');
+            } else {
+                strengthBar.classList.add('password-strength-strong');
+            }
+        });
+
+        // Login form handler
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const loginBtn = document.getElementById('loginBtn');
+            const errorDiv = document.getElementById('errorMessage');
+            const successDiv = document.getElementById('successMessage');
+            const warningDiv = document.getElementById('warningMessage');
+            
+            // Hide previous messages
+            errorDiv.classList.remove('show');
+            successDiv.classList.remove('show');
+            warningDiv.classList.remove('show');
+            
+            // Disable button
+            loginBtn.disabled = true;
+            loginBtn.querySelector('span').textContent = 'Logging in...';
+            
+            try {
+                const result = await login(email, password);
+                
+                if (result.success) {
+                    successDiv.querySelector('span').textContent = 'Login successful! Redirecting...';
+                    successDiv.classList.add('show');
+                    
+                    // Store tokens
+                    localStorage.setItem('accessToken', result.accessToken);
+                    localStorage.setItem('idToken', result.idToken);
+                    localStorage.setItem('refreshToken', result.refreshToken);
+                    
+                    // Redirect to main menu
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1000);
+                } else if (result.requiresNewPassword) {
+                    // Show password change form
+                    document.getElementById('loginForm').style.display = 'none';
+                    document.getElementById('passwordChangeSection').classList.add('show');
+                    // Store session and email for password change
+                    window.pendingPasswordChange = {
+                        email: email,
+                        session: result.session
+                    };
+                    loginBtn.disabled = false;
+                    loginBtn.querySelector('span').textContent = 'Login';
+                } else {
+                    errorDiv.querySelector('span').textContent = result.error || 'Login failed. Please try again.';
+                    errorDiv.classList.add('show');
+                    loginBtn.disabled = false;
+                    loginBtn.querySelector('span').textContent = 'Login';
+                }
+            } catch (error) {
+                errorDiv.querySelector('span').textContent = 'An error occurred. Please try again.';
+                errorDiv.classList.add('show');
+                loginBtn.disabled = false;
+                loginBtn.querySelector('span').textContent = 'Login';
+            }
+        });
+        
+        // Password change form handler
+        document.getElementById('passwordChangeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+            const changePasswordBtn = document.getElementById('changePasswordBtn');
+            const errorDiv = document.getElementById('errorMessage');
+            const successDiv = document.getElementById('successMessage');
+            
+            // Hide previous messages
+            errorDiv.classList.remove('show');
+            successDiv.classList.remove('show');
+            
+            // Validate passwords match
+            if (newPassword !== confirmNewPassword) {
+                errorDiv.querySelector('span').textContent = 'Passwords do not match';
+                errorDiv.classList.add('show');
+                return;
+            }
+            
+            // Validate password length
+            if (newPassword.length < 8) {
+                errorDiv.querySelector('span').textContent = 'Password must be at least 8 characters long';
+                errorDiv.classList.add('show');
+                return;
+            }
+            
+            // Disable button
+            changePasswordBtn.disabled = true;
+            changePasswordBtn.querySelector('span').textContent = 'Changing password...';
+            
+            try {
+                const API_BASE_URL = window.location.origin + '/api';
+                const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: window.pendingPasswordChange.email,
+                        session: window.pendingPasswordChange.session,
+                        newPassword: newPassword
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.accessToken) {
+                    successDiv.querySelector('span').textContent = 'Password changed successfully! Redirecting...';
+                    successDiv.classList.add('show');
+                    
+                    // Store tokens
+                    localStorage.setItem('accessToken', result.accessToken);
+                    localStorage.setItem('idToken', result.idToken);
+                    localStorage.setItem('refreshToken', result.refreshToken);
+                    
+                    // Redirect to main menu
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1000);
+                } else {
+                    errorDiv.querySelector('span').textContent = result.error || 'Password change failed. Please try again.';
+                    errorDiv.classList.add('show');
+                    changePasswordBtn.disabled = false;
+                    changePasswordBtn.querySelector('span').textContent = 'Change Password';
+                }
+            } catch (error) {
+                errorDiv.querySelector('span').textContent = 'An error occurred. Please try again.';
+                errorDiv.classList.add('show');
+                changePasswordBtn.disabled = false;
+                changePasswordBtn.querySelector('span').textContent = 'Change Password';
+            }
+        });
+        
+        // Cancel password change
+        document.getElementById('cancelPasswordChange').addEventListener('click', () => {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('passwordChangeSection').classList.remove('show');
+            document.getElementById('passwordChangeForm').reset();
+            delete window.pendingPasswordChange;
+        });
+        
+        // Check if already logged in
+        if (localStorage.getItem('accessToken')) {
+            window.location.href = 'index.html';
+        }
+    </script>
+</body>
+</html>

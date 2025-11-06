@@ -2,7 +2,7 @@ const ENDPOINT_UPLOAD = "https://6ubjdo1kbd.execute-api.ap-southeast-2.amazonaws
 const ENDPOINT_JOBID = "https://r5goxolgt8.execute-api.ap-southeast-2.amazonaws.com/prod/job";
 const ENDPOINT_SUMMARY = "https://mai2yr3hmd.execute-api.ap-southeast-2.amazonaws.com/dev/get-summary";
 const ENDPOINT_QA = "https://lxssie8nzc.execute-api.ap-southeast-2.amazonaws.com/prod/ask";
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = window.location.origin + '/api';
 
 let selectedFile;
 let globalJobId = null;
@@ -15,7 +15,6 @@ let processorNode = null;
 let ws = null;
 let activeSessionId = null;
 
-// DOM Elements
 const fileInput = document.getElementById("fileInput");
 const uploadBtn = document.getElementById("uploadBtn");
 const statusDiv = document.getElementById("status");
@@ -34,21 +33,79 @@ const chatWindow = document.getElementById("chatWindow");
 const languageSelect = document.getElementById("languageSelect");
 const ttsToggle = document.getElementById("ttsToggle");
 const micBtn = document.getElementById("micBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const userInfo = document.getElementById("userInfo");
 
-// Event Listeners
-fileInput.addEventListener("change", e => {
-    selectedFile = e.target.files[0];
-    uploadBtn.disabled = !selectedFile;
-    status("✅ Selected: " + selectedFile.name);
+window.addEventListener('DOMContentLoaded', async () => {
+    if (!isAuthenticated()) {
+        window.location.href = 'login.html';
+        return;
+    }
+
+    if (userInfo) {
+        try {
+            const userResult = await getCurrentUser();
+            if (userResult.success && userResult.user) {
+                const email = userResult.user.attributes.email || userResult.user.username;
+                const name = userResult.user.attributes.name || email.split('@')[0];
+                userInfo.textContent = name;
+            }
+        } catch (error) {
+            console.error('Error loading user info:', error);
+        }
+    }
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            logout();
+        });
+    }
+
+    if (uploadBtn && fileInput) {
+        uploadBtn.disabled = !(fileInput.files && fileInput.files[0]);
+    }
 });
 
-uploadBtn.addEventListener("click", () => selectedFile && startFlow(selectedFile));
-sendBtn.addEventListener("click", sendQuestion);
-chatInput.addEventListener("keypress", e => { if (e.key === "Enter") sendQuestion(); });
-languageSelect.addEventListener("change", handleLanguageChange);
-micBtn.addEventListener("click", toggleRecording);
+if (!window.initUpload) {
+    if (fileInput) {
+        fileInput.addEventListener("change", e => {
+            selectedFile = e.target.files[0];
+            if (uploadBtn) uploadBtn.disabled = !selectedFile;
+            if (selectedFile) status("✅ Selected: " + selectedFile.name);
+        });
 
-function status(msg) { statusDiv.textContent = msg; }
+        fileInput.addEventListener("input", e => {
+            selectedFile = e.target.files && e.target.files[0];
+            if (uploadBtn) uploadBtn.disabled = !selectedFile;
+            if (selectedFile) status("✅ Selected: " + selectedFile.name);
+        });
+    }
+
+    if (uploadBtn) {
+        uploadBtn.addEventListener("click", () => {
+            console.log('[uploadBtn] clicked', { hasFile: !!selectedFile, name: selectedFile && selectedFile.name });
+            if (!selectedFile) {
+                status("Please select a file first");
+                try { if (fileInput) fileInput.focus(); } catch (_) {}
+                return;
+            }
+            startFlow(selectedFile);
+        });
+    }
+}
+
+if (sendBtn) sendBtn.addEventListener("click", sendQuestion);
+if (chatInput) chatInput.addEventListener("keypress", e => { if (e.key === "Enter") sendQuestion(); });
+if (languageSelect) languageSelect.addEventListener("change", handleLanguageChange);
+if (micBtn) micBtn.addEventListener("click", toggleRecording);
+
+function status(msg) { 
+    if (statusDiv) {
+        statusDiv.textContent = msg;
+        statusDiv.style.display = 'flex';
+    }
+    console.log('[Status]', msg);
+}
 function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
 
 async function handleLanguageChange(event) {
@@ -62,9 +119,8 @@ async function translateUI() {
         for (const element of elements) {
             const originalText = element.getAttribute('data-original-text') || element.textContent;
             element.setAttribute('data-original-text', originalText);
-            const response = await fetch(`${API_BASE_URL}/translate`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/translate`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     text: originalText,
                     targetLanguage: currentLanguage
@@ -81,9 +137,8 @@ async function translateUI() {
 async function speakText(text) {
     if (!ttsToggle.checked) return;
     try {
-        const response = await fetch(`${API_BASE_URL}/tts`, {
+        const response = await authenticatedFetch(`${API_BASE_URL}/tts`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 text,
                 language: currentLanguage
@@ -97,7 +152,7 @@ async function speakText(text) {
     }
 }
 
-// --- WebSocket Lifecycle Management ---
+// WebSocket Lifecycle Management
 
 async function openWebSocket() {
     return new Promise((resolve, reject) => {
@@ -144,7 +199,8 @@ function closeWebSocket() {
     }
 }
 
-// --- Recording Toggle ---
+// Recording Toggle
+
 async function toggleRecording() {
     if (!isRecording) {
         try {
@@ -196,7 +252,8 @@ async function toggleRecording() {
     }
 }
 
-// --- Audio Processing ---
+// Audio Processing
+
 function floatTo16BitPCM(input) {
     const l = input.length;
     const result = new Int16Array(l);
@@ -228,8 +285,6 @@ function downsampleAndConvertTo16BitPCM(buffer, fromSampleRate, toSampleRate) {
     return result;
 }
 
-// --- Remaining app logic unchanged below ---
-
 async function startFlow(file) {
     try {
         status("Connecting to secure upload...");
@@ -240,28 +295,43 @@ async function startFlow(file) {
         const objectKey = b.object_key;
         if (!uploadUrl || !objectKey) throw new Error("Upload URL or object key missing");
 
-        progressWrap.classList.remove("hidden");
+        if (progressWrap) progressWrap.classList.remove("hidden");
         status("📤 Uploading...");
         await uploadToS3(uploadUrl, file);
-        progressWrap.classList.add("hidden");
+        if (progressWrap) progressWrap.classList.add("hidden");
         status("⏳ Extracting & analyzing...");
 
         globalJobId = await poll(ENDPOINT_JOBID + "?object_key=" + encodeURIComponent(objectKey), "job_id", 15);
         status("📄 Fetching summary...");
-        const summaryUrl = await poll(ENDPOINT_SUMMARY + "?job_id=" + encodeURIComponent(globalJobId), "presigned_get_url", 25);
+        const summaryUrl = await poll(ENDPOINT_SUMMARY + "?job_id=" + encodeURIComponent(globalJobId), "presigned_get_url", 50);
         const summary = await (await fetch(summaryUrl)).json();
 
-        summaryArea.classList.remove("hidden");
+        if (summaryArea) summaryArea.classList.remove("hidden");
         renderSummary(summary);
         createPdfFromSummary(summary);
 
-        alertsWrapper.classList.remove("hidden");
-        if (summary.alerts && summary.alerts.length > 0)
-            alertsList.innerHTML = summary.alerts.map(a => `<li>⚠️ ${a}</li>`).join("");
-        else alertsList.innerHTML = "<li>No alerts</li>";
+        if (alertsWrapper) {
+            alertsWrapper.classList.remove("hidden");
+            if (alertsList) {
+                if (summary.alerts && summary.alerts.length > 0) {
+                    alertsList.innerHTML = summary.alerts.map(a => `<li>⚠️ ${a}</li>`).join("");
+                } else {
+                    alertsList.innerHTML = "<li>No critical alerts</li>";
+                }
+            }
+        }
 
-        resultsWrapper.classList.remove("hidden");
+        if (resultsWrapper) resultsWrapper.classList.remove("hidden");
         status("✅ Summary Ready! Ask your assistant a question →");
+        
+        if (chatWindow) {
+            const welcomeMsg = chatWindow.querySelector('.msg.bot');
+            if (welcomeMsg) {
+                welcomeMsg.innerHTML = '<strong>Assistant:</strong> I\'ve analyzed the uploaded medical report. How can I help you understand it better?';
+            } else {
+                addChat("Assistant", "I've analyzed the uploaded medical report. How can I help you understand it better?");
+            }
+        }
 
     } catch (e) {
         status("Error: " + e.message);
@@ -275,8 +345,12 @@ function uploadToS3(url, file) {
         xhr.setRequestHeader("Content-Type", file.type || "application/pdf");
         xhr.upload.onprogress = e => {
             const p = Math.round((e.loaded / e.total) * 100);
-            uploadProgress.value = p;
-            progressText.textContent = `${p}%`;
+            if (uploadProgress) {
+                uploadProgress.value = p;
+            }
+            if (progressText) {
+                progressText.textContent = `Uploading: ${p}%`;
+            }
         };
         xhr.onload = () => xhr.status < 300 ? res() : rej(new Error("Upload failed"));
         xhr.onerror = () => rej(new Error("Network error"));
@@ -298,10 +372,12 @@ async function poll(url, field, tries) {
 async function sendQuestion() {
     const q = chatInput.value.trim();
     if (!q) return;
-    if (!globalJobId) {
-        addChat("System", "Upload a report first");
+    const currentJobId = globalJobId || sessionStorage.getItem('globalJobId');
+    if (!currentJobId) {
+        addChat("System", "Please upload a document from the dashboard first");
         return;
     }
+    globalJobId = currentJobId;
     addChat("You", q);
     chatInput.value = "";
     addChat("Assistant", "⏳ Thinking...");
@@ -309,9 +385,8 @@ async function sendQuestion() {
     try {
         let questionToAsk = q;
         if (currentLanguage !== 'en') {
-            const translationResponse = await fetch(`${API_BASE_URL}/translate`, {
+            const translationResponse = await authenticatedFetch(`${API_BASE_URL}/translate`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text: q, targetLanguage: 'en' })
             });
             const translationData = await translationResponse.json();
@@ -328,9 +403,8 @@ async function sendQuestion() {
         let answer = js.answer || js.result || JSON.stringify(js);
 
         if (currentLanguage !== 'en') {
-            const translationResponse = await fetch(`${API_BASE_URL}/translate`, {
+            const translationResponse = await authenticatedFetch(`${API_BASE_URL}/translate`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text: answer, targetLanguage: currentLanguage })
             });
             const translationData = await translationResponse.json();
@@ -345,6 +419,7 @@ async function sendQuestion() {
 }
 
 function addChat(sender, msg) {
+    if (!chatWindow) return;
     const div = document.createElement("div");
     div.className = sender === "You" ? "msg user" : "msg bot";
     div.innerHTML = `<strong>${sender}:</strong> ${msg}`;
@@ -353,6 +428,7 @@ function addChat(sender, msg) {
 }
 
 function replaceLastBotMessage(newText) {
+    if (!chatWindow) return;
     const msgs = chatWindow.querySelectorAll(".msg.bot");
     if (msgs.length > 0) msgs[msgs.length - 1].innerHTML = `<strong>Assistant:</strong> ${newText}`;
 }
@@ -373,16 +449,18 @@ function renderSummary(summary) {
         return `<div class="summary-section translate"><h4>${title}</h4><ul>${items.map(i => `<li>${i}</li>`).join("")}</ul></div>`;
     }
 
-    summaryJson.innerHTML = `
-        <div class="summary-section translate">
-            <h4>Patient Details</h4>
-            <ul>${personalFields || "<li>No personal details detected</li>"}</ul>
-        </div>
-        ${listSection("Conditions", s.conditions)}
-        ${listSection("Medications", s.medications)}
-        ${listSection("Tests", s.tests)}
-        ${listSection("Treatment Plan", s.treatment_plan)}
-    `;
+    if (summaryJson) {
+        summaryJson.innerHTML = `
+            <div class="summary-section translate">
+                <h4>Patient Details</h4>
+                <ul>${personalFields || "<li>No personal details detected</li>"}</ul>
+            </div>
+            ${listSection("Conditions", s.conditions)}
+            ${listSection("Medications", s.medications)}
+            ${listSection("Tests", s.tests)}
+            ${listSection("Treatment Plan", s.treatment_plan)}
+        `;
+    }
 }
 
 function createPdfFromSummary(summary) {
@@ -438,7 +516,13 @@ function createPdfFromSummary(summary) {
 
     const pdfBlob = doc.output("blob");
     const pdfUrl = URL.createObjectURL(pdfBlob);
-    downloadLink.href = pdfUrl;
-    downloadLink.download = "Medical_Summary.pdf";
-    downloadLink.textContent = "⬇ Download PDF";
+    if (downloadLink) {
+        downloadLink.href = pdfUrl;
+        downloadLink.download = "Medical_Summary.pdf";
+        if (downloadLink.querySelector('i')) {
+            downloadLink.innerHTML = '<i class="fas fa-download"></i> Download PDF Report';
+        } else {
+            downloadLink.textContent = "⬇ Download PDF";
+        }
+    }
 }

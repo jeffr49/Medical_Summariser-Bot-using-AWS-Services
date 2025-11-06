@@ -2,65 +2,620 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Medical Assistant</title>
-    <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-dark: #1d4ed8;
+            --primary-light: #3b82f6;
+            --secondary-color: #10b981;
+            --text-color: #1f2937;
+            --text-light: #6b7280;
+            --card-background: #ffffff;
+            --background: #f8fafc;
+            --border-color: #d1d5db;
+            --error-color: #ef4444;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --gradient-primary: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            --gradient-secondary: linear-gradient(135deg, var(--secondary-color) 0%, #059669 100%);
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background);
+            color: var(--text-color);
+            line-height: 1.6;
+            min-height: 100vh;
+            background-image: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        }
+
+        .dashboard-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .dashboard-header {
+            text-align: center;
+            margin-bottom: 60px;
+            position: relative;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 20px;
+        }
+
+        .logo-icon {
+            background: var(--gradient-primary);
+            width: 70px;
+            height: 70px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.8rem;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .header-text {
+            text-align: left;
+        }
+
+        .dashboard-header h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .dashboard-header p {
+            color: var(--text-light);
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .user-welcome {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+            display: inline-flex;
+            align-items: center;
+            box-shadow: var(--shadow-md);
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--gradient-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            margin-right: 15px;
+        }
+
+        .user-info h3 {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+
+        .user-info p {
+            color: var(--text-light);
+            font-size: 0.95rem;
+            margin: 0;
+        }
+
+        .dashboard-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .dashboard-card {
+            background: var(--card-background);
+            border-radius: 20px;
+            padding: 40px 30px;
+            box-shadow: var(--shadow-md);
+            text-align: center;
+            transition: all 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: var(--gradient-primary);
+        }
+
+        .dashboard-card:hover {
+            transform: translateY(-10px);
+            box-shadow: var(--shadow-xl);
+        }
+
+        .dashboard-card.featured {
+            border: 2px solid var(--primary-color);
+            transform: scale(1.02);
+        }
+
+        .card-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 25px;
+            font-size: 2.2rem;
+            color: white;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .summarizer-icon {
+            background: var(--gradient-primary);
+        }
+
+        .chatbot-icon {
+            background: var(--gradient-secondary);
+        }
+
+        .dashboard-card h2 {
+            color: var(--text-color);
+            font-size: 1.6rem;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .dashboard-card p {
+            color: var(--text-light);
+            margin-bottom: 30px;
+            flex-grow: 1;
+            line-height: 1.7;
+        }
+
+        .card-features {
+            text-align: left;
+            margin-bottom: 25px;
+            padding: 0 10px;
+        }
+
+        .card-features li {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        .card-features i {
+            margin-right: 10px;
+            color: var(--primary-color);
+            font-size: 0.9rem;
+        }
+
+        .card-btn {
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            padding: 16px 30px;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            max-width: 220px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card-btn i {
+            margin-right: 10px;
+            font-size: 1.1rem;
+        }
+
+        .upload-section {
+            background: var(--card-background);
+            border-radius: 20px;
+            padding: 40px 30px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: var(--gradient-primary);
+        }
+
+        .upload-section h2 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-color);
+        }
+
+        .upload-section p {
+            color: var(--text-light);
+            margin-bottom: 30px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 25px;
+        }
+
+        .file-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 40px 20px;
+            transition: all 0.3s ease;
+            background: #fafafa;
+        }
+
+        .file-input-display:hover {
+            border-color: var(--primary-color);
+            background: #f0f9ff;
+        }
+
+        .file-input-display i {
+            font-size: 3rem;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+        }
+
+        .file-input-text {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .file-input-subtext {
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        .upload-btn {
+            background: var(--gradient-primary);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 0 auto;
+            box-shadow: var(--shadow-md);
+        }
+
+        .upload-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .upload-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .progress-wrap {
+            margin-top: 25px;
+            width: 100%;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            display: none;
+        }
+
+        .progress-wrap progress {
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-top: 10px;
+        }
+
+        .dashboard-footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-options {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .logo {
+                margin-right: 0;
+                margin-bottom: 15px;
+            }
+            
+            .header-text {
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .dashboard-container {
+                padding: 20px 15px;
+            }
+            
+            .dashboard-header h1 {
+                font-size: 2.2rem;
+            }
+            
+            .dashboard-card {
+                padding: 30px 20px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>AI Medical Assistant</h1>
-        <p class="subtitle">Upload → Summarize → Ask Questions</p>
-        <div class="language-selector">
-            <select id="languageSelect">
-                <option value="en">English</option>
-                <option value="hi">Hindi</option>                
-            </select>
-        </div>
-    </header>
-
-    <section class="card upload-card">
-        <label class="file-label">Select Medical Report</label>
-        <input type="file" id="fileInput" accept=".pdf,.png,.jpg">
-        <button id="uploadBtn" class="btn" disabled>📤 Upload & Summarize</button>
-        <div id="status" class="status"></div>
-
-        <div id="progressWrap" class="progress-wrap hidden">
-            <progress id="uploadProgress" value="0" max="100"></progress>
-            <span id="progressText"></span>
-        </div>
-    </section>
-
-    <div id="resultsWrapper" class="results hidden">
-        <section id="summaryArea" class="card summary-card">
-            <h3>📄 Summary</h3>
-            <div id="summaryJson"></div>
-            <a id="downloadLink" class="btn-link" href="#" download>⬇ Download PDF</a>
-        </section>
-
-        <section id="alertsWrapper" class="card alerts-card hidden">
-            <h3>⚠️ Critical Alerts</h3>
-            <ul id="alertsList" class="alerts-list"></ul>
-        </section>
-
-        <section class="card chat-card">
-            <h3>🤖 Ask Your AI Assistant</h3>
-            <div class="chat-controls">
-                <label class="switch">
-                    <input type="checkbox" id="ttsToggle">
-                    <span class="slider round"></span>
-                    <span class="toggle-label">Text-to-Speech</span>
-                </label>
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <i class="fas fa-stethoscope"></i>
+                    </div>
+                </div>
+                <div class="header-text">
+                    <h1>AI Medical Assistant</h1>
+                    <p>Your intelligent healthcare companion for accurate medical insights and professional guidance</p>
+                </div>
             </div>
-            <div id="chatWindow" class="chat-window"></div>
-            <div class="chat-input-area">
-                <input type="text" id="chatInput" placeholder="Ask something..." />
-                <button id="micBtn" class="btn small">🎤</button>
-                <button id="sendBtn" class="btn small">Send</button>
+            
+            <div class="user-welcome">
+                <div class="user-avatar">
+                    <i class="fas fa-user-md"></i>
+                </div>
+                <div class="user-info">
+                    <h3 id="userGreeting">Welcome</h3>
+                    <p id="lastLogin">Loading...</p>
+                </div>
             </div>
-        </section>
+        </div>
+
+        <div class="upload-section">
+            <h2>Upload Medical Document</h2>
+            <p>Upload a medical document to get started with either the Summarizer or Chatbot</p>
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" class="file-input" accept=".pdf,.png,.jpg,.jpeg">
+                <div class="file-input-display">
+                    <i class="fas fa-file-medical"></i>
+                    <div class="file-input-text" id="fileInputText">Choose a file or drag it here</div>
+                    <div class="file-input-subtext">Supports PDF, PNG, JPG (Max 10MB)</div>
+                </div>
+            </div>
+            <button id="uploadBtn" class="upload-btn" disabled>
+                <i class="fas fa-cloud-upload-alt"></i>
+                Upload Document
+            </button>
+            <div id="status" class="status"></div>
+            <div id="progressWrap" class="progress-wrap">
+                <progress id="uploadProgress" value="0" max="100"></progress>
+                <div id="progressText" class="progress-text">Processing...</div>
+            </div>
+        </div>
+
+        <div class="dashboard-options">
+            <div class="dashboard-card featured" id="summarizerCard">
+                <div class="card-icon summarizer-icon">
+                    <i class="fas fa-file-medical-alt"></i>
+                </div>
+                <h2>Medical Summarizer</h2>
+                <p>Upload medical reports and get comprehensive summaries with critical alerts and AI-powered question answering.</p>
+                
+                <ul class="card-features">
+                    <li><i class="fas fa-check-circle"></i> Extract key information from medical documents</li>
+                    <li><i class="fas fa-check-circle"></i> Identify critical findings and alerts</li>
+                    <li><i class="fas fa-check-circle"></i> Generate concise patient summaries</li>
+                    <li><i class="fas fa-check-circle"></i> Ask questions about your documents</li>
+                </ul>
+                
+                <button class="card-btn" onclick="window.location.href='summarizer.html'">
+                    <i class="fas fa-external-link-alt"></i>
+                    Open Summarizer
+                </button>
+            </div>
+
+            <div class="dashboard-card" id="chatbotCard">
+                <div class="card-icon chatbot-icon">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <h2>AI Medical Chatbot</h2>
+                <p>Chat with our AI assistant for medical information, health advice, and general medical queries.</p>
+                
+                <ul class="card-features">
+                    <li><i class="fas fa-check-circle"></i> 24/7 medical information access</li>
+                    <li><i class="fas fa-check-circle"></i> Symptom checking and triage</li>
+                    <li><i class="fas fa-check-circle"></i> Medication information</li>
+                    <li><i class="fas fa-check-circle"></i> Health education resources</li>
+                </ul>
+                
+                <button class="card-btn" onclick="window.location.href='chatbot.html'">
+                    <i class="fas fa-external-link-alt"></i>
+                    Open Chatbot
+                </button>
+            </div>
+        </div>
+
+        <div class="dashboard-footer">
+            <p>AI Medical Assistant &copy; 2023 | Secure Health Data Handling</p>
+        </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="auth.js"></script>
+    <script src="upload.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            if (!isAuthenticated()) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            try {
+                const userResult = await getCurrentUser();
+                if (userResult.success && userResult.user) {
+                    const email = userResult.user.attributes.email || userResult.user.username;
+                    const name = userResult.user.attributes.name || email.split('@')[0];
+                    
+                    const hour = new Date().getHours();
+                    const greeting = document.getElementById('userGreeting');
+                    
+                    let timeGreeting = '';
+                    if (hour < 12) {
+                        timeGreeting = 'Good morning';
+                    } else if (hour < 18) {
+                        timeGreeting = 'Good afternoon';
+                    } else {
+                        timeGreeting = 'Good evening';
+                    }
+                    
+                    greeting.textContent = `${timeGreeting}, ${name}`;
+                    
+                    const lastLoginEl = document.getElementById('lastLogin');
+                    const now = new Date();
+                    const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                    const dateString = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                    lastLoginEl.textContent = `Last login: ${dateString}, ${timeString}`;
+                } else {
+                    document.getElementById('userGreeting').textContent = 'Welcome';
+                    document.getElementById('lastLogin').textContent = 'Unable to load user info';
+                }
+            } catch (error) {
+                console.error('Error loading user info:', error);
+                document.getElementById('userGreeting').textContent = 'Welcome';
+                document.getElementById('lastLogin').textContent = 'Unable to load user info';
+            }
+
+            const cards = document.querySelectorAll('.dashboard-card');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                
+                setTimeout(() => {
+                    card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 200);
+            });
+
+            initUpload({
+                onSuccess: function(jobId, objectKey) {
+                    sessionStorage.setItem('globalJobId', jobId);
+                    sessionStorage.setItem('uploadedObjectKey', objectKey);
+                    console.log('Upload successful, job ID:', jobId);
+                },
+                onError: function(error) {
+                    console.error('Upload error:', error);
+                }
+            });
+        });
+    </script>
 </body>
 </html>
