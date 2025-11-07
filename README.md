@@ -2,6 +2,8 @@
 
 A multilingual medical report summarization and analysis tool with speech capabilities powered by AWS services.
 
+Live Demo: [AI Medical Assistant (Elastic Beanstalk)](http://medical-summarizer-env.eba-pshbbimf.ap-southeast-2.elasticbeanstalk.com/)
+
 ## Features
 
 - **Document Processing**
@@ -9,6 +11,19 @@ A multilingual medical report summarization and analysis tool with speech capabi
   - Automatic summarization
   - Critical alerts identification
   - PDF summary generation
+
+- **Patient Portal & Authentication**
+  - Secure login with email and password
+  - Mandatory first-login password change flow
+  - Session-based access controls
+
+- **AI Symptom Analysis**
+  - Symptom intake via text or voice
+  - AI-powered triage-style guidance and next-step suggestions
+
+- **Personalized Health Insights**
+  - Tailored explanations alongside document summaries
+  - Context-aware recommendations
 
 - **Multilingual Support**
   - English
@@ -27,6 +42,7 @@ A multilingual medical report summarization and analysis tool with speech capabi
   - Context-aware medical assistant
   - Multilingual responses
   - Voice input/output options
+  - Available 24/7 virtual assistance
 
 ## Prerequisites
 
@@ -41,7 +57,7 @@ A multilingual medical report summarization and analysis tool with speech capabi
 1. Clone the repository:
    ```bash
    git clone <repository-url>
-   cd medical-summarizer
+   cd medical-summarizer_02
    ```
 
 2. Install dependencies:
@@ -102,6 +118,36 @@ A multilingual medical report summarization and analysis tool with speech capabi
 - `AWS_SECRET_ACCESS_KEY` - Your AWS secret access key
 - `AWS_REGION` - AWS region (e.g., us-east-1)
 - `PORT` - Server port (default: 3000)
+
+## Deployment (AWS Elastic Beanstalk)
+
+This project can be deployed to AWS Elastic Beanstalk using the Node.js platform.
+
+1. Prepare the build artifact:
+   - Ensure all dependencies are listed in `package.json`
+   - Include a start script (e.g., `"start": "node server.js"` or the appropriate entry point)
+   - Zip the application source (excluding `node_modules` if EB will run `npm install`)
+
+2. Create an Elastic Beanstalk environment:
+   - Platform: Node.js (matching your runtime)
+   - Application and environment names as desired
+   - Upload and deploy the zip artifact
+
+3. Configure environment variables in EB:
+   - `AWS_ACCESS_KEY_ID`
+   - `AWS_SECRET_ACCESS_KEY`
+   - `AWS_REGION`
+   - `PORT` (typically 8080 on EB Node.js, or configure your app to use `process.env.PORT`)
+
+4. Health checks and scaling:
+   - Ensure the application listens on `process.env.PORT`
+   - Configure health check path (e.g., `/health` if available)
+
+5. Access the public URL:
+   - After a successful deploy, EB provides an endpoint like:
+     `http://medical-summarizer-env.eba-pshbbimf.ap-southeast-2.elasticbeanstalk.com/`
+
+Public Deployment: [AI Medical Assistant on Elastic Beanstalk](http://medical-summarizer-env.eba-pshbbimf.ap-southeast-2.elasticbeanstalk.com/)
 
 ## Limitations
 
