@@ -712,6 +712,12 @@
             let currentLanguage = 'en';
             let isRecording = false;
             let isWaitingForResponse = false;
+            let ws = null;
+            let activeSessionId = null;
+            let audioContext = null;
+            let mediaStream = null;
+            let sourceNode = null;
+            let processorNode = null;
 
             const savedJobId = sessionStorage.getItem('globalJobId');
             if (savedJobId) {
@@ -942,27 +948,136 @@
                 }
             }
 
-            function toggleRecording() {
+            async function openWebSocket() {
+                return new Promise((resolve, reject) => {
+                    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+                    const wsUrl = `${proto}://${window.location.host}/stt`;
+                    ws = new WebSocket(wsUrl);
+
+                    ws.onopen = () => {
+                        console.log('WebSocket connected');
+                        ws.send(JSON.stringify({ type: 'lang', language: currentLanguage }));
+                        resolve();
+                    };
+
+                    ws.onerror = (error) => {
+                        console.error('WebSocket error:', error);
+                        reject(error);
+                    };
+
+                    ws.onclose = () => {
+                        console.log('WebSocket closed');
+                    };
+
+                    ws.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            console.log('WebSocket message received:', data);
+                            if (data.type === 'session') {
+                                activeSessionId = data.sessionId;
+                                console.log('Session ID:', activeSessionId);
+                            } else if (data.type === 'transcript') {
+                                console.log('Transcript received:', data.text, 'isPartial:', data.isPartial);
+                                chatInput.value = data.text;
+                            }
+                        } catch (err) {
+                            console.error('Error parsing WebSocket message:', err);
+                        }
+                    };
+                });
+            }
+
+            function closeWebSocket() {
+                if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+                    console.log('Closing WebSocket...');
+                    ws.close(1000, 'Session ended');
+                    ws = null;
+                }
+            }
+
+            function floatTo16BitPCM(input) {
+                const l = input.length;
+                const result = new Int16Array(l);
+                for (let i = 0; i < l; i++) {
+                    let s = Math.max(-1, Math.min(1, input[i]));
+                    result[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                return result;
+            }
+
+            function downsampleAndConvertTo16BitPCM(buffer, fromSampleRate, toSampleRate) {
+                if (!buffer || buffer.length === 0) return new Int16Array(0);
+                if (toSampleRate === fromSampleRate) return floatTo16BitPCM(buffer);
+                const sampleRateRatio = fromSampleRate / toSampleRate;
+                const newLength = Math.round(buffer.length / sampleRateRatio);
+                const result = new Int16Array(newLength);
+                let offsetResult = 0, offsetBuffer = 0;
+                while (offsetResult < result.length) {
+                    const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
+                    let accum = 0, count = 0;
+                    for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+                        accum += buffer[i]; count++;
+                    }
+                    const v = count ? accum / count : 0;
+                    let s = Math.max(-1, Math.min(1, v));
+                    result[offsetResult] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                    offsetResult++; offsetBuffer = nextOffsetBuffer;
+                }
+                return result;
+            }
+
+            async function toggleRecording() {
                 if (!isRecording) {
-                    isRecording = true;
-                    micBtn.classList.add("recording");
-                    chatInput.placeholder = "Listening... Speak now";
-                    
-                    setTimeout(() => {
-                        const sampleQuestions = [
-                            "What are the symptoms of diabetes?",
-                            "How can I lower my cholesterol?",
-                            "What is a normal blood pressure reading?",
-                            "How much water should I drink daily?"
-                        ];
-                        const randomQuestion = sampleQuestions[Math.floor(Math.random() * sampleQuestions.length)];
-                        chatInput.value = randomQuestion;
-                        toggleRecording();
-                    }, 3000);
+                    try {
+                        await openWebSocket();
+                        const stream = await navigator.mediaDevices.getUserMedia({
+                            audio: { channelCount: 1, sampleRate: 16000, echoCancellation: true, noiseSuppression: true }
+                        });
+
+                        // Try to create AudioContext with 16kHz, but browser may use different rate
+                        // We'll use the actual sampleRate and downsample to 16kHz
+                        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+                        console.log(`AudioContext created with sampleRate: ${audioContext.sampleRate} Hz (will downsample to 16000 Hz)`);
+                        mediaStream = stream;
+                        sourceNode = audioContext.createMediaStreamSource(stream);
+                        processorNode = audioContext.createScriptProcessor(4096, 1, 1);
+                        sourceNode.connect(processorNode);
+                        processorNode.connect(audioContext.destination);
+
+                        processorNode.onaudioprocess = (e) => {
+                            if (!isRecording || !ws || ws.readyState !== WebSocket.OPEN) return;
+                            const inputData = e.inputBuffer.getChannelData(0);
+                            // Always downsample to 16kHz (browser-supported frequency)
+                            // Use actual audioContext sampleRate (may be 48kHz even if we requested 16kHz)
+                            const actualSampleRate = audioContext.sampleRate;
+                            const pcmData = downsampleAndConvertTo16BitPCM(inputData, actualSampleRate, 16000);
+                            ws.send(pcmData.buffer);
+                        };
+
+                        isRecording = true;
+                        micBtn.classList.add('recording');
+                        chatInput.placeholder = "Listening... Speak now";
+
+                    } catch (error) {
+                        console.error('Error starting recording:', error);
+                        addChat("Assistant", "⚠️ Microphone access denied or WebSocket error. Please check your permissions.");
+                        closeWebSocket();
+                    }
                 } else {
                     isRecording = false;
-                    micBtn.classList.remove("recording");
+                    micBtn.classList.remove('recording');
                     chatInput.placeholder = "Ask me anything about medical topics...";
+
+                    if (processorNode) processorNode.disconnect();
+                    if (sourceNode) sourceNode.disconnect();
+                    if (audioContext) await audioContext.close().catch(() => {});
+                    if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
+
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: 'stop' }));
+                    }
+
+                    closeWebSocket();
                 }
             }
         });

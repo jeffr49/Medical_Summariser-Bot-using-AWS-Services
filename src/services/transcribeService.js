@@ -84,9 +84,11 @@ class TranscribeService {
                         if (transcriptText) {
                             if (isPartial) {
                                 console.log(`[transcribe][partial] ${transcriptText}`);
+                                // Send partial transcripts for real-time display
+                                try { this.onTranscribe(transcriptText, true); } catch (e) { console.error('onTranscribe handler error:', e); }
                             } else {
                                 console.log(`[transcribe][final] ${transcriptText}`);
-                                try { this.onTranscribe(transcriptText); } catch (e) { console.error('onTranscribe handler error:', e); }
+                                try { this.onTranscribe(transcriptText, false); } catch (e) { console.error('onTranscribe handler error:', e); }
                             }
                         }
                     }

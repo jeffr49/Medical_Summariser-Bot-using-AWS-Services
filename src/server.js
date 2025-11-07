@@ -216,15 +216,16 @@ wss.on('connection', (ws, req) => {
     let transcribeService = null;
 
     transcribeService = new TranscribeService(
-        (transcript) => {
+        (transcript, isPartial) => {
             if (clientClosed || !transcript) return;
             
-            console.log(`[${sessionId}] Transcript: ${transcript}`);
+            console.log(`[${sessionId}] Transcript: ${transcript} (${isPartial ? 'partial' : 'final'})`);
             
             try {
                 ws.send(JSON.stringify({ 
                     type: 'transcript', 
                     text: transcript,
+                    isPartial: isPartial || false,
                     sessionId: sessionId
                 }));
             } catch (err) {
@@ -251,9 +252,10 @@ wss.on('connection', (ws, req) => {
                     console.log(`WS ${sessionId} <<< binary ${size} bytes at ${new Date().toISOString()}`);
 
                     try {
-                        if (transcribeService && !transcribeService.isActive && transcribeService.pendingLanguage) {
-                            console.log(`Starting transcribeService on first audio chunk for session ${sessionId} with language=${transcribeService.pendingLanguage}`);
-                            transcribeService.start(transcribeService.pendingLanguage).catch(err => console.error('Transcribe start failed:', err));
+                        if (transcribeService && !transcribeService.isActive) {
+                            const language = transcribeService.pendingLanguage || 'en';
+                            console.log(`Starting transcribeService on first audio chunk for session ${sessionId} with language=${language}`);
+                            transcribeService.start(language).catch(err => console.error('Transcribe start failed:', err));
                         }
                     } catch (e) {}
 
