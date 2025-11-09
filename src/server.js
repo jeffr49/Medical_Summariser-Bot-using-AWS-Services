@@ -178,6 +178,16 @@ app.post('/api/auth/logout', authenticateToken, async (req, res) => {
     }
 });
 
+// API Endpoints Configuration
+app.get('/api/config', (req, res) => {
+    res.json({
+        ENDPOINT_UPLOAD: process.env.ENDPOINT_UPLOAD || '',
+        ENDPOINT_JOBID: process.env.ENDPOINT_JOBID || '',
+        ENDPOINT_SUMMARY: process.env.ENDPOINT_SUMMARY || '',
+        ENDPOINT_QA: process.env.ENDPOINT_QA || ''
+    });
+});
+
 // Protected API Routes
 
 app.post('/api/tts', authenticateToken, async (req, res) => {

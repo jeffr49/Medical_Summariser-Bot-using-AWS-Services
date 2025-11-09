@@ -1,8 +1,29 @@
-const ENDPOINT_UPLOAD = "https://6ubjdo1kbd.execute-api.ap-southeast-2.amazonaws.com/dev/upload";
-const ENDPOINT_JOBID = "https://r5goxolgt8.execute-api.ap-southeast-2.amazonaws.com/prod/job";
-const ENDPOINT_SUMMARY = "https://mai2yr3hmd.execute-api.ap-southeast-2.amazonaws.com/dev/get-summary";
-const ENDPOINT_QA = "https://lxssie8nzc.execute-api.ap-southeast-2.amazonaws.com/prod/ask";
+let ENDPOINT_UPLOAD = '';
+let ENDPOINT_JOBID = '';
+let ENDPOINT_SUMMARY = '';
+let ENDPOINT_QA = '';
 const API_BASE_URL = window.location.origin + '/api';
+
+let endpointsLoadedPromise = null;
+
+async function loadApiEndpoints() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/config`);
+        const config = await response.json();
+        ENDPOINT_UPLOAD = config.ENDPOINT_UPLOAD;
+        ENDPOINT_JOBID = config.ENDPOINT_JOBID;
+        ENDPOINT_SUMMARY = config.ENDPOINT_SUMMARY;
+        ENDPOINT_QA = config.ENDPOINT_QA;
+        
+        if (!ENDPOINT_UPLOAD || !ENDPOINT_JOBID || !ENDPOINT_SUMMARY || !ENDPOINT_QA) {
+            console.error('API endpoints not configured. Please set ENDPOINT_UPLOAD, ENDPOINT_JOBID, ENDPOINT_SUMMARY, and ENDPOINT_QA in your .env file');
+        }
+    } catch (error) {
+        console.error('Error loading API endpoints:', error);
+    }
+}
+
+endpointsLoadedPromise = loadApiEndpoints();
 
 let selectedFile;
 let globalJobId = null;
@@ -287,6 +308,14 @@ function downsampleAndConvertTo16BitPCM(buffer, fromSampleRate, toSampleRate) {
 
 async function startFlow(file) {
     try {
+        // Wait for endpoints to be loaded
+        await endpointsLoadedPromise;
+        
+        if (!ENDPOINT_UPLOAD || !ENDPOINT_JOBID || !ENDPOINT_SUMMARY) {
+            status("Error: API endpoints not configured");
+            return;
+        }
+        
         status("Connecting to secure upload...");
         const presResp = await fetch(ENDPOINT_UPLOAD, { method: "POST" });
         const data = await presResp.json();
@@ -372,6 +401,15 @@ async function poll(url, field, tries) {
 async function sendQuestion() {
     const q = chatInput.value.trim();
     if (!q) return;
+    
+    // Wait for endpoints to be loaded
+    await endpointsLoadedPromise;
+    
+    if (!ENDPOINT_QA) {
+        replaceLastBotMessage("⚠️ API endpoint not configured");
+        return;
+    }
+    
     const currentJobId = globalJobId || sessionStorage.getItem('globalJobId');
     if (!currentJobId) {
         addChat("System", "Please upload a document from the dashboard first");

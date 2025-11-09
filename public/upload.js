@@ -1,5 +1,25 @@
-const ENDPOINT_UPLOAD = "https://6ubjdo1kbd.execute-api.ap-southeast-2.amazonaws.com/dev/upload";
-const ENDPOINT_JOBID = "https://r5goxolgt8.execute-api.ap-southeast-2.amazonaws.com/prod/job";
+let ENDPOINT_UPLOAD = '';
+let ENDPOINT_JOBID = '';
+
+let endpointsLoadedPromise = null;
+
+async function loadApiEndpoints() {
+    try {
+        const API_BASE_URL = window.location.origin + '/api';
+        const response = await fetch(`${API_BASE_URL}/config`);
+        const config = await response.json();
+        ENDPOINT_UPLOAD = config.ENDPOINT_UPLOAD;
+        ENDPOINT_JOBID = config.ENDPOINT_JOBID;
+        
+        if (!ENDPOINT_UPLOAD || !ENDPOINT_JOBID) {
+            console.error('API endpoints not configured. Please set ENDPOINT_UPLOAD and ENDPOINT_JOBID in your .env file');
+        }
+    } catch (error) {
+        console.error('Error loading API endpoints:', error);
+    }
+}
+
+endpointsLoadedPromise = loadApiEndpoints();
 
 let selectedFile = null;
 let globalJobId = null;
@@ -124,6 +144,15 @@ async function startFileUploadFlow(file, options = {}) {
     } = options;
 
     try {
+        // Wait for endpoints to be loaded
+        await endpointsLoadedPromise;
+        
+        if (!ENDPOINT_UPLOAD || !ENDPOINT_JOBID) {
+            if (status) status("Error: API endpoints not configured", 'error');
+            if (onError) onError(new Error("API endpoints not configured"));
+            return;
+        }
+        
         if (uploadBtn) uploadBtn.disabled = true;
         if (status) status("Connecting to secure upload...", 'info');
         
