@@ -3,6 +3,9 @@
 A multilingual medical report summarization and analysis tool with speech capabilities powered by AWS services.
 
 Live Demo: [AI Medical Assistant (Elastic Beanstalk)](http://medical-summarizer-env.eba-pshbbimf.ap-southeast-2.elasticbeanstalk.com/)
+To test , use credentials:
+Username: jeffrey@gmail.com
+Password: Myawsproject@123
 
 To view the Architecture Diagram and Process Flow of the project : [Arch Diagram](https://app.eraser.io/workspace/XUT1Os3oGT6MKLp4WLIL?origin=share)
 
